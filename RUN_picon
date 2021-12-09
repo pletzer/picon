@@ -1,0 +1,360 @@
+#!/bin/tcsh
+#PBS -l walltime=3:00:00
+#PBS -l mem=4gb
+#PBS -l ncpus=4
+#PBS -m a
+#PBS -M Steven.Phipps@utas.edu.au
+#PBS -N picon
+#
+# Purpose
+# -------
+# Runs the Mk3L-1.2 coupled model for one year at a time on kunanyi.
+#
+# History
+# -------
+# 2017 Aug 22	Steven Phipps	Original version
+
+########################################################
+#                                                      #
+#                    USER INTERFACE                    #
+#                                                      #
+#  Set the following variables to the required values  #
+#                                                      #
+########################################################
+
+# Run name
+set run = picon
+
+# Duration of run, in years
+set LASTYR = 10000
+
+# Interval over which to archive restart files, in years
+set REST_INTERVAL = 100
+
+# Interval over which to archive model output, in years
+set SAVE_INTERVAL = 100
+
+######################################################
+#                                                    #
+#                   RUN THE MODEL                    #
+#                                                    #
+#  You shouldn't have to change anything after here  #
+#                                                    #
+######################################################
+
+# Set stack sizes
+limit stacksize unlimited
+setenv KMP_STACKSIZE 10M
+
+# Set number of threads
+setenv OMP_NUM_THREADS 4
+
+# Set names of run directories on kunanyi
+set copydir = /scratch/${USER}/${run}/copy
+set rundir = /scratch/${USER}/${run}/run
+set tmpdir = /scratch/${USER}/${run}/tmp
+
+# Set names of data directories on kunanyi
+set atdir = ${HOME}/mk3l/runs/${run}/atmos
+set comdir = ${HOME}/mk3l/runs/${run}/com
+set histdir = ${HOME}/mk3l/runs/${run}/daily
+set outdir = ${HOME}/mk3l/runs/${run}/out
+set restdir = ${HOME}/mk3l/runs/${run}/restart
+
+# Set name of logfile
+set logfile = log.$run
+
+# Change to run directory
+cd $rundir
+
+# Set year number - $year may have leading zeroes, whereas $yr will not
+set year = `cat year`
+set yr = `expr $year + 0`
+
+# Tidy up from previous year
+/bin/mv ${run}.[eo]* $tmpdir
+
+# Save temporary copies of restart files
+/bin/cp -p oflux.nc $copydir
+/bin/cp -p orest.nc $copydir
+/bin/cp -p rest.start $copydir
+
+# Initialise log entry for this year
+echo "YEAR $year" >> $logfile
+echo "----------" >> $logfile
+echo "Running on node `hostname`, using $OMP_NUM_THREADS cores..." >> $logfile
+
+# Run model for one year
+echo "Running model..." >> $logfile
+./model < input > out.$year
+
+# Check that run was OK
+set MESSAGE = `tail out.$year | grep termination`
+if ("$MESSAGE" != "") then
+  set crashed = 0
+  echo "Year terminated normally." >> $logfile
+else
+  set crashed = 1
+  echo "ABNORMAL TERMINATION." >> $logfile
+endif
+
+# If model crashed, attempt to restart
+if ($crashed == 1) then
+
+  # Determine month during which crash occurred
+  set months = (January February March April May June July August September October November December)
+  @ monthc = `ls -l hist???????.$run.nc | wc -l`
+  echo "Crash occurred during $months[$monthc]." >> $logfile
+
+  # Attempt to restart from progressively earlier points in time
+  @ monthr = $monthc - 1
+  while (($crashed == 1) && ($monthr >= 1))
+
+    # Restart model from end of previous month
+    echo "Restarting model from end of $months[$monthr]..." >> $logfile
+
+    # 1. Clean up from previous run
+    /bin/rm fort.40
+    /bin/rm hist???????.$run.nc
+    if (-e rest.end) /bin/rm rest.end
+
+    # 2. Restore restart files
+    /bin/cp -p $copydir/oflux.nc .
+    /bin/cp -p $copydir/orest.nc .
+    /bin/cp -p $copydir/rest.start .
+
+    # 3. Create temporary control file
+    cat input | awk -v monthr=$monthr '$0 ~ /lastmonth/ {print "   lastmonth="monthr}; $0 !~ /lastmonth/ {print $0}' > input.restart
+
+    # 4. Repeat first part of year
+    ./model < input.restart >> out.$year
+
+    # 5. Save ocean model output
+    /bin/mv fort.40 fort.40_old
+
+    # 6. Rename output atmosphere model restart file as new input restart file
+    /bin/mv rest.end rest.start
+
+    # 7. Restart model
+    ./model < input >> out.$year
+
+    # 8. Combine ocean model output
+    if (-e fort.40) cat fort.40 >> fort.40_old
+    /bin/mv fort.40_old fort.40
+
+    # 9. Delete temporary control file
+    /bin/rm input.restart
+
+    # Check that run was OK
+    set MESSAGE = `tail out.$year | grep termination`
+    if ("$MESSAGE" != "") then
+      set crashed = 0
+      echo "Year terminated normally." >> $logfile
+    else
+      set crashed = 1
+      echo "ABNORMAL TERMINATION." >> $logfile
+    endif
+
+    # Next restart attempt will be from end of previous month
+    @ monthr --
+
+  end
+endif
+
+# If model could not be restarted, try repeating January with reduced AGCM timestep
+if ($crashed == 1) then
+
+  # Repeat January with reduced AGCM timestep
+  echo "Repeating January with AGCM timestep reduced from 20 to 15 minutes..." >> $logfile
+
+  # 1. Clean up from previous run
+  /bin/rm fort.40
+  /bin/rm hist???????.$run.nc
+  if (-e rest.end) /bin/rm rest.end
+
+  # 2. Restore restart files
+  /bin/cp -p $copydir/oflux.nc .
+  /bin/cp -p $copydir/orest.nc .
+  /bin/cp -p $copydir/rest.start .
+
+  # 3. Create temporary control file
+  cat input | awk '$0 ~ /mstep/ {print "   mstep=15"}; $0 !~ /mstep/ {print $0}' > input.restart
+  /bin/mv input.restart input.tmp
+  cat input.tmp | awk '$0 ~ /lastmonth/ {print "   lastmonth=1"}; $0 !~ /lastmonth/ {print $0}' > input.restart
+  /bin/mv input.restart input.tmp
+  cat input.tmp | awk '$0 ~ /nrad/ {print "   nrad=8"}; $0 !~ /nrad/ {print $0}' > input.restart
+  /bin/rm input.tmp
+
+  # 4. Repeat January with reduced AGCM timestep
+  ./model < input.restart >> out.$year
+
+  # 5. Save ocean model output
+  /bin/mv fort.40 fort.40_old
+
+  # 6. Rename output atmosphere model restart file as new input restart file
+  /bin/mv rest.end rest.start
+
+  # 7. Restart model
+  echo "Restarting model from end of January..." >> $logfile
+  ./model < input >> out.$year
+
+  # 8. Combine ocean model output
+  if (-e fort.40) cat fort.40 >> fort.40_old
+  /bin/mv fort.40_old fort.40
+
+  # 9. Delete temporary control file
+  /bin/rm input.restart
+
+  # Check that run was OK
+  set MESSAGE = `tail out.$year | grep termination`
+  if ("$MESSAGE" != "") then
+    set crashed = 0
+    echo "Year terminated normally." >> $logfile
+  else
+    set crashed = 1
+    echo "ABNORMAL TERMINATION." >> $logfile
+    echo "MODEL CANNOT BE RESTARTED." >> $logfile
+    echo "" >> $logfile
+    exit
+  endif
+
+endif
+
+# Archive daily output of model every year
+foreach month (01 02 03 04 05 06 07 08 09 10 11 12)
+  gzip hist${year}${month}.${run}.nc
+  chmod 444 hist${year}${month}.${run}.nc.gz
+end
+tar cf hist.${run}.${year}.tar hist${year}??.${run}.nc.gz
+chmod 444 hist.${run}.${year}.tar
+mv hist.${run}.${year}.tar $tmpdir
+cd $tmpdir
+/bin/mv hist.${run}.${year}.tar $histdir
+cd $rundir
+chmod 600 hist${year}??.${run}.nc.gz
+/bin/rm hist${year}??.${run}.nc.gz
+
+# Save restart files every REST_INTERVAL years
+if (`expr $yr % $REST_INTERVAL` == 0) then
+  /bin/cp -p oflux.nc oflux.nc_${run}_$year
+  /bin/cp -p orest.nc orest.nc_${run}_$year
+  /bin/cp -p rest.end rest.start_${run}_$year
+  chmod 444 oflux.nc_${run}_$year orest.nc_${run}_$year rest.start_${run}_$year
+  gzip oflux.nc_${run}_$year orest.nc_${run}_$year rest.start_${run}_$year
+  /bin/mv oflux.nc_${run}_${year}.gz orest.nc_${run}_${year}.gz \
+          rest.start_${run}_${year}.gz $tmpdir
+endif
+
+# Rename output atmosphere model restart file as new input restart file
+/bin/mv rest.end rest.start
+
+# Save standard output of model
+gzip out.$year
+chmod 444 out.${year}.gz
+/bin/mv out.${year}.gz $tmpdir
+
+# Convert ocean model output to netCDF
+./convert_averages fort.40 com.${run}.${year}.nc
+/bin/rm fort.40
+
+# Save output of ocean model
+chmod 444 com.${run}.${year}.nc
+/bin/mv com.${run}.${year}.nc $tmpdir
+
+# Every SAVE_INTERVAL years, calculate annual means of ocean model output and
+# then archive all model output
+if (`expr $yr % $SAVE_INTERVAL` == 0) then
+  set yr2 = $year
+  set year1 = `expr $yr - $SAVE_INTERVAL + 1`
+  set yr1 = $year1
+  if ($year1 <= 9999) set yr1 = 0$year1
+  if ($year1 <= 999) set yr1 = 00$year1
+  if ($year1 <= 99) set yr1 = 000$year1
+  if ($year1 <= 9) set yr1 = 0000$year1
+
+  # Compress and tar atmosphere model output, and then archive it
+  gzip s*${run}.nc
+  chmod 444 s*${run}.nc.gz
+  tar cf netcdf.${run}.${yr1}-${yr2}.tar s*${run}.nc.gz
+  /bin/mv netcdf.${run}.${yr1}-${yr2}.tar $tmpdir
+  chmod 600 s*${run}.nc.gz
+  /bin/rm s*${run}.nc.gz
+  cd $tmpdir
+  chmod 444 netcdf.${run}.${yr1}-${yr2}.tar
+  /bin/mv netcdf.${run}.${yr1}-${yr2}.tar $atdir
+
+  # Calculate annual means of ocean model output, compress them and then
+  # archive them
+  ./annual_averages $run $yr1 $yr2
+  chmod 444 com.ann.${run}.${yr1}-${yr2}.nc
+  gzip com.ann.${run}.${yr1}-${yr2}.nc
+  /bin/mv com.ann.${run}.${yr1}-${yr2}.nc.gz $comdir
+
+  # Compress and tar ocean model output, and then archive it
+  chmod 444 com.${run}.?????.nc
+  gzip com.${run}.?????.nc
+  set comtar = com.${run}.${yr1}-${yr2}.tar
+  tar cf $comtar com.${run}.?????.nc.gz
+  chmod 444 $comtar
+  /bin/mv com.$run $comtar $comdir
+  chmod 600 com.${run}.?????.nc.gz
+  /bin/rm com.${run}.?????.nc.gz
+
+  # Tar restart files, and then archive them
+  tar cf restart.${run}.${yr2}.tar oflux.nc_${run}_?????.gz \
+         orest.nc_${run}_?????.gz rest.start_${run}_?????.gz
+  chmod 444 restart.${run}.${yr2}.tar
+  /bin/mv restart.${run}.${yr2}.tar $restdir
+  chmod 600 oflux.nc_${run}_?????.gz orest.nc_${run}_?????.gz \
+            rest.start_${run}_?????.gz
+  /bin/rm oflux.nc_${run}_?????.gz orest.nc_${run}_?????.gz \
+          rest.start_${run}_?????.gz
+
+  # Tar standard output of model, and then archive it
+  tar cf out.${run}.${yr1}-${yr2}.tar out.?????.gz
+  chmod 444 out.${run}.${yr1}-${yr2}.tar
+  /bin/mv out.${run}.${yr1}-${yr2}.tar $outdir
+  chmod 600 out.?????.gz
+  /bin/rm out.?????.gz
+
+  # Change back to run directory
+  cd $rundir
+
+endif
+
+# Finalise log entry for this year
+echo "" >> $logfile
+
+# Increment year number
+set yrnext = `expr $year + 1`
+set yrp1 = $yrnext
+if ($yrnext <= 9999) set yrp1 = 0$yrnext
+if ($yrnext <= 999) set yrp1 = 00$yrnext
+if ($yrnext <= 99) set yrp1 = 000$yrnext
+if ($yrnext <= 9) set yrp1 = 0000$yrnext
+/bin/rm year
+echo $yrp1 > year
+
+# Stop run if file stop_run exists
+if (-e ${rundir}/stop_run) then
+  echo "RUN STOPPED: stop_run EXISTS." >> $logfile
+  echo "" >> $logfile
+  exit
+endif
+
+# Continue run as necessary
+if ($year != $LASTYR) then
+  qsub RUN
+  set errstat = $?
+  @ n = 1
+  while (($errstat != 0) && ($n <= 10))
+    echo "qsub error - trying again in 60 seconds..."
+    sleep 60
+    qsub RUN
+    set errstat = $?
+    @ n ++
+  end
+else
+  echo "END OF RUN AT YEAR ${year}." >> $logfile
+  echo "" >> $logfile
+endif

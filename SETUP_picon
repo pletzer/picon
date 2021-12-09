@@ -1,0 +1,77 @@
+#!/bin/tcsh
+#
+# Purpose
+# -------
+# Sets up the Mk3L-1.2 coupled model to run on kunanyi.
+#
+# History
+# -------
+# 2017 Aug 22	Steven Phipps	Original version
+
+# Set name of run
+set run = picon
+
+# Set names of parent directories
+set tagdir = ${HOME}/CSIRO_Mk3L/version-1.2
+set localdir = ${HOME}/mk3l
+set rundir = /scratch/${USER}/$run
+set datadir = ${HOME}/mk3l/runs/$run
+
+# Create data directories
+mkdir $datadir
+pushd $datadir
+mkdir atmos com daily out restart
+
+# Create run directories
+mkdir $rundir
+cd $rundir
+mkdir copy run tmp
+
+# Change to run directory
+cd run
+
+# Get executables required at runtime
+cp ${localdir}/core/bin/model_1.2_kunanyi model
+cp ${localdir}/core/bin/convert_averages_1.2_kunanyi convert_averages
+
+# Get executables required for post-processing
+cp ${localdir}/core/bin/annual_averages_1.2_kunanyi ../tmp/annual_averages
+
+# Get basic data files
+cp ${tagdir}/core/data/atmosphere/basic/* .
+cp ${tagdir}/core/data/ocean/basic/* .
+
+# Get runoff relocation data
+cp ${tagdir}/core/data/atmosphere/runoff/landrun21 .
+
+# Get CO2 radiative data for 280ppm
+cp ${tagdir}/core/data/atmosphere/co2/co2_data.280ppm.18l .
+
+# Get NOAA OI SST v2 SSTs 1p0
+cp ${tagdir}/core/data/atmosphere/sst/ssta.nc_default ssta.nc
+
+# Get flux adjustments
+cp ${tagdir}/core/data/coupled/flux_adjustments/hfcor.nc_default hfcor.nc
+cp ${tagdir}/core/data/coupled/flux_adjustments/sfcor.nc_default sfcor.nc
+cp ${tagdir}/core/data/coupled/flux_adjustments/txcor.nc_default txcor.nc
+cp ${tagdir}/core/data/coupled/flux_adjustments/tycor.nc_default tycor.nc
+cp ${tagdir}/core/data/coupled/flux_adjustments/sstcor.nc_default sstcor.nc
+cp ${tagdir}/core/data/coupled/flux_adjustments/ssscor.nc_default ssscor.nc
+cp ${tagdir}/core/data/coupled/flux_adjustments/dtm.nc_default dtm.nc
+
+# Get control file
+cp ${localdir}/core/control/input.$run input
+
+# Get run script
+cp ${localdir}/core/scripts/RUN_$run RUN
+
+# Set model year number to 00001
+echo '00001' > year
+
+# Get restart files
+cp ${tagdir}/core/data/atmosphere/restart/rest.start_default rest.start
+cp ${tagdir}/core/data/ocean/restart/orest.nc_sync orest.nc
+cp ${tagdir}/core/data/coupled/restart/oflux.nc_default oflux.nc
+
+# Return to original directory
+popd

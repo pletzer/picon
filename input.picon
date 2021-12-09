@@ -1,0 +1,133 @@
+ &control
+   lcouple=T
+   locean=F
+   mstep=20
+   ndstop=0
+   months=0
+   lastmonth=12
+   nsstop=0
+   nrad=6
+   co2_datafile='co2_data.280ppm.18l'
+   o3_datafile='o3_data.18l'
+   filewrflag=T
+   irfilename='rest.start'
+   orfilename='rest.end'
+   runtype='picon'
+   qflux=F
+   ncarpbl=T
+   naerosol_d=0
+   csolar=1365.0
+   bpyear=0
+   rcritl=0.75
+   rcrits=0.85
+   refac1=0.595
+   refac2=0.865
+ &end
+
+ &diagnostics
+   dynfp=F, minw=480
+   iener=F
+   ispec=F
+   zavgp=F, dynzp=F, phz1p=F, phz2p=F, conzp=F, plotheat=F, plotclds=F,
+     plotnetr=F, plotevrn=F
+   gmap1=F, cvrnm=F, gwicm=F, rhnmm=F, cldm=F
+   gmap2=F, rainm=F, evapm=F, pmslm=F, surfm=F
+   cdmap=F
+   mlomap=F
+   idayp=0
+   glmean_interval=240
+   statsflag=T
+   saveqflux=F
+   savefcor=F
+   clforflag=T
+   savehist=T
+   hist_interval=1440
+ &end
+
+ &statvars
+   evp_sflg=T, pev_sflg=T, sev_sflg=T, rnd_sflg=T, rnc_sflg=T, hfl_sflg=T,
+   wfg_sflg=T, wfb_sflg=T, run_sflg=T, per_sflg=T, int_sflg=T, psl_sflg=T,
+   vmo_sflg=T, tax_sflg=T, tay_sflg=T, tsu_sflg=T, tsc_sflg=T, tb2_sflg=T,
+   tb3_sflg=T, tgg_sflg=T, tgf_sflg=T, thd_sflg=T, tld_sflg=T, thg_sflg=T,
+   tlg_sflg=T, thf_sflg=T, tlf_sflg=T, thm_sflg=T, tlm_sflg=T, dtm_sflg=F,
+   rsv_sflg=F,
+   cld_sflg=T, cll_sflg=T, clm_sflg=T, clh_sflg=T,
+   rgn_sflg=T, rgd_sflg=T, rgc_sflg=T, sgn_sflg=T, sgd_sflg=T, sgc_sflg=T,
+   rtu_sflg=T, rtc_sflg=T, sot_sflg=T, soc_sflg=T, als_sflg=T,
+   snd_sflg=T, sid_sflg=T, ico_sflg=T, itf_sflg=T, isf_sflg=T, icu_sflg=T,
+   icv_sflg=T, div_sflg=T, gro_sflg=T, ire_sflg=T, ich_sflg=T,
+   fwf_sflg=T,
+   sno_sflg=T, rev_sflg=T, ssb_sflg=T, clc_sflg=T, lwp_sflg=T, pwc_sflg=T,
+   ref_sflg=T,
+     u_sflg=T,   v_sflg=T,   t_sflg=T,   q_sflg=T,  rh_sflg=T,   g_sflg=T,
+     c_sflg=T,   l_sflg=T
+ &end
+
+ &histvars
+   clda_hflg=T
+   evp_hflg=T
+   hfl_hflg=T
+   ico_hflg=T
+   psf_hflg=T
+   psl_hflg=T
+   rgd_hflg=T
+   rgn_hflg=T
+   rhsa_hflg=T
+   rnc_hflg=T
+   rnd_hflg=T
+   rtu_hflg=T
+   run_hflg=T
+   sgd_hflg=T
+   sgn_hflg=T
+   sit_hflg=T
+   snd_hflg=T
+   tsh_hflg=T
+   tsl_hflg=T
+   tsca_hflg=T
+   v10ma_hflg=T
+ &end
+
+ &params
+ &end
+
+ &coupling
+   fluxadj=T
+   subice=T
+ &end
+
+ &contrl
+ &end
+
+ &eddy
+ &end
+
+ &eddy2
+ &end
+
+ &etrans
+ &end
+
+ &tsteps
+ &end
+
+ &parms
+ &end
+
+ &icple
+ &end
+
+ &pltg
+ &end
+
+ &coefs
+ &end
+
+ &accel
+ &end
+
+ &osave
+   save_rho=T
+   save_uedd=F
+   save_vedd=F
+   save_wedd=F
+ &end
