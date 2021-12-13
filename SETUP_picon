@@ -15,8 +15,9 @@ set run = picon
 # Set names of parent directories
 set tagdir = /home/sinclada/.jupyter/jobs/23489215/vuw03367/version-1.2
 set localdir = `pwd`
-set rundir = /nesi/nobackup/pletzera/mk3l/$run
-set datadir = $rundir/runs/$run
+
+set rundir = /nesi/nobackup/pletzera/mk3l/run/$run
+set datadir = /nesi/nobackup/pletzera/mk3l/data/$run
 
 # Create data directories
 mkdir -p $datadir
@@ -24,7 +25,7 @@ pushd $datadir
 mkdir atmos com daily out restart
 
 # Create run directories
-mkdir $rundir
+mkdir -p $rundir
 cd $rundir
 mkdir copy run tmp
 
