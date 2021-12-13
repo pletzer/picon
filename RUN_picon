@@ -50,16 +50,16 @@ setenv KMP_STACKSIZE 10M
 setenv OMP_NUM_THREADS ${SLURM_CPUS_PER_TASK}
 
 # Set names of run directories
-set copydir = /nesi/nobackup/pletzera/mk3l/$run/copy
-set rundir = /nesi/nobackup/pletzera/mk3l/$run/run
-set tmpdir = /nesi/nobackup/pletzera/mk3l/$run/tmp
+set copydir = /nesi/nobackup/pletzera/mk3l/run/$run/copy
+set rundir = /nesi/nobackup/pletzera/mk3l/run/$run/run
+set tmpdir = /nesi/nobackup/pletzera/mk3l/run/$run/tmp
 
-# Set names of data directories on kunanyi
-set atdir = nesi/nobackup/pletzera/mk3l/$run/runs/${run}/atmos
-set comdir = nesi/nobackup/pletzera/mk3l/$run/runs/${run}/com
-set histdir = nesi/nobackup/pletzera/mk3l/$run/runs/${run}/daily
-set outdir = nesi/nobackup/pletzera/mk3l/$run/runs/${run}/out
-set restdir = nesi/nobackup/pletzera/mk3l/$run/runs/${run}/restart
+# Set names of data directories
+set atdir = /nesi/nobackup/pletzera/mk3l/data/$run/atmos
+set comdir = /nesi/nobackup/pletzera/mk3l/data/$run/com
+set histdir = /nesi/nobackup/pletzera/mk3l/data/$run/daily
+set outdir = /nesi/nobackup/pletzera/mk3l/data/$run/out
+set restdir = /nesi/nobackup/pletzera/mk3l/data/$run/restart
 
 # Set name of logfile
 set logfile = log.$run
